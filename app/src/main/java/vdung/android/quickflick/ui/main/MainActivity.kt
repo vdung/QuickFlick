@@ -1,4 +1,4 @@
-package vdung.android.quickflick.ui
+package vdung.android.quickflick.ui.main
 
 import android.os.Bundle
 import dagger.android.support.DaggerAppCompatActivity

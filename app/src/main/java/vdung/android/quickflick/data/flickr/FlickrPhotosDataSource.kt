@@ -6,7 +6,7 @@ import io.reactivex.disposables.CompositeDisposable
 
 abstract class FlickrPhotosDataSource : PageKeyedDataSource<Int, FlickrPhoto>() {
 
-    private val disposable = CompositeDisposable()
+    private var disposable = CompositeDisposable()
 
     abstract fun loadInitialRequest(params: LoadInitialParams<Int>): Single<FlickrPhotoSearchResponse>
     abstract fun loadBeforeRequest(params: LoadParams<Int>): Single<FlickrPhotoSearchResponse>
@@ -43,7 +43,7 @@ abstract class FlickrPhotosDataSource : PageKeyedDataSource<Int, FlickrPhoto>() 
     }
 
     override fun invalidate() {
-        super.invalidate()
         disposable.dispose()
+        super.invalidate()
     }
 }

@@ -5,8 +5,7 @@ import retrofit2.http.GET
 import retrofit2.http.Query
 
 interface FlickrService {
-
-
+    
     @GET("?method=flickr.photos.search")
     fun searchPhotos(
         @Query("tags") tags: String,

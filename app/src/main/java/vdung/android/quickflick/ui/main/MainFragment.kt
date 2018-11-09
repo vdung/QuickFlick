@@ -19,6 +19,7 @@ import vdung.android.quickflick.databinding.MainRecyclerViewItemBinding
 import vdung.android.quickflick.di.GlideApp
 import vdung.android.quickflick.ui.common.DataBindingPagedListAdapter
 import vdung.android.quickflick.ui.common.DataBindingViewHolder
+import vdung.android.quickflick.ui.common.StaggeredGridInsetDecoration
 import javax.inject.Inject
 
 class MainFragment : DaggerFragment() {
@@ -42,15 +43,22 @@ class MainFragment : DaggerFragment() {
         viewModel = ViewModelProviders.of(requireActivity(), viewModelFactory).get()
         val adapter = Adapter()
 
+        binding.viewModel = viewModel
         binding.apply {
-            recyclerView.apply {
-                this.adapter = adapter
-                this.layoutManager = StaggeredGridLayoutManager(3, StaggeredGridLayoutManager.VERTICAL)
+            recyclerView.let {
+                it.adapter = adapter
+                it.layoutManager = StaggeredGridLayoutManager(2, StaggeredGridLayoutManager.VERTICAL)
+                it.addItemDecoration(
+                    StaggeredGridInsetDecoration(
+                        resources.getDimensionPixelSize(R.dimen.grid_edge_inset),
+                        resources.getDimensionPixelSize(R.dimen.grid_inner_inset)
+                    )
+                )
             }
         }
 
         viewModel.searchPhotos().observe(this, Observer {
-            adapter.submitList(it)
+            adapter.submitList(it.value)
         })
     }
 

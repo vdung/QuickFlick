@@ -11,7 +11,9 @@ import retrofit2.Retrofit
 import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import retrofit2.converter.moshi.MoshiConverterFactory
 import vdung.android.quickflick.R
+import vdung.android.quickflick.data.flickr.FlickrRepository
 import vdung.android.quickflick.data.flickr.FlickrService
+import javax.inject.Singleton
 
 @Module
 class DataModule {
@@ -58,5 +60,11 @@ class DataModule {
     @Provides
     fun provideFlickrService(retrofit: Retrofit): FlickrService {
         return retrofit.create(FlickrService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideRepository(service: FlickrService): FlickrRepository {
+        return FlickrRepository(service)
     }
 }
