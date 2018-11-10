@@ -1,10 +1,15 @@
 package vdung.android.quickflick.ui.main
 
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.constraintlayout.widget.ConstraintSet
+import androidx.core.app.ActivityOptionsCompat
+import androidx.core.util.Pair
+import androidx.core.view.ViewCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProviders
@@ -17,18 +22,29 @@ import vdung.android.quickflick.data.flickr.FlickrPhoto
 import vdung.android.quickflick.databinding.MainFragmentBinding
 import vdung.android.quickflick.databinding.MainRecyclerViewItemBinding
 import vdung.android.quickflick.di.GlideApp
-import vdung.android.quickflick.ui.common.DataBindingPagedListAdapter
-import vdung.android.quickflick.ui.common.DataBindingViewHolder
-import vdung.android.quickflick.ui.common.StaggeredGridInsetDecoration
+import vdung.android.quickflick.ui.common.*
+import vdung.android.quickflick.ui.photo.PhotoActivity
 import javax.inject.Inject
 
-class MainFragment : DaggerFragment() {
-
+class MainFragment : DaggerFragment(), OnActivityReenterListener {
     @Inject
     internal lateinit var viewModelFactory: ViewModelProvider.Factory
 
     private lateinit var binding: MainFragmentBinding
     private lateinit var viewModel: MainViewModel
+
+    var currentPosition = 0
+    private var hasPendingTransition = false
+
+    override fun onAttach(context: Context?) {
+        super.onAttach(context)
+        (requireActivity() as? OnActivityReenterListener.Host)?.addListener(this)
+    }
+
+    override fun onDetach() {
+        (requireActivity() as? OnActivityReenterListener.Host)?.removeListener(this)
+        super.onDetach()
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         binding = MainFragmentBinding.inflate(inflater, container, false).also {
@@ -45,21 +61,66 @@ class MainFragment : DaggerFragment() {
 
         binding.viewModel = viewModel
         binding.apply {
-            recyclerView.let {
-                it.adapter = adapter
-                it.layoutManager = StaggeredGridLayoutManager(2, StaggeredGridLayoutManager.VERTICAL)
-                it.addItemDecoration(
+            recyclerView.apply {
+                this.adapter = adapter
+                layoutManager = StaggeredGridLayoutManager(2, StaggeredGridLayoutManager.VERTICAL)
+                addItemDecoration(
                     StaggeredGridInsetDecoration(
                         resources.getDimensionPixelSize(R.dimen.grid_edge_inset),
                         resources.getDimensionPixelSize(R.dimen.grid_inner_inset)
                     )
                 )
+
+                attachExitSharedElementCallback(requireActivity(), {
+                    currentPosition
+                }) { viewHolder, names ->
+                    val binding = viewHolder.let {
+                        @Suppress("UNCHECKED_CAST")
+                        it as DataBindingViewHolder<FlickrPhoto, MainRecyclerViewItemBinding>
+                    }.binding
+
+                    return@attachExitSharedElementCallback mapOf(names[0] to binding.imageView)
+                }
+
+                if (hasPendingTransition) {
+                    executePostponedTransition(requireActivity(), currentPosition)
+                }
             }
         }
 
         viewModel.searchPhotos().observe(this, Observer {
             adapter.submitList(it.value)
         })
+    }
+
+    override fun onActivityReenter(resultCode: Int, data: Intent?) {
+        val position = data?.getIntExtra(PhotoActivity.ARG_CURRENT_POSITION, 0) ?: return
+        requireActivity().supportPostponeEnterTransition()
+
+        currentPosition = position
+        if (::binding.isInitialized) {
+            binding.recyclerView.executePostponedTransition(requireActivity(), currentPosition)
+        } else {
+            hasPendingTransition = true
+        }
+    }
+
+    val onItemClickListener = View.OnClickListener { v ->
+        val holder = binding.recyclerView.findContainingViewHolder(v)?.let {
+            @Suppress("UNCHECKED_CAST")
+            it as? DataBindingViewHolder<FlickrPhoto, MainRecyclerViewItemBinding>
+        } ?: return@OnClickListener
+
+        currentPosition = holder.adapterPosition
+
+        val options = ActivityOptionsCompat.makeSceneTransitionAnimation(
+            requireActivity(),
+            Pair(holder.binding.imageView, holder.binding.imageView.transitionName)
+        )
+        startActivity(
+            PhotoActivity.launchIntent(requireActivity(), currentPosition),
+            options.toBundle()
+        )
     }
 
     companion object {
@@ -88,10 +149,13 @@ class MainFragment : DaggerFragment() {
                         setDimensionRatio(R.id.image_view, "${it.smallWidth}:${it.smallHeight}")
                         applyTo(constraintView)
                     }
+                    ViewCompat.setTransitionName(imageView, it.id)
 
                     GlideApp.with(holder.itemView)
                         .load(it)
                         .into(holder.binding.imageView)
+
+                    root.setOnClickListener(onItemClickListener)
                 }
             }
         }

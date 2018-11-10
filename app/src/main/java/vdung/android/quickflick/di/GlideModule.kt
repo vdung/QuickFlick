@@ -15,7 +15,7 @@ import java.io.InputStream
 
 
 @GlideModule
-class CloudGalleryGlideModule : AppGlideModule() {
+class QuickFlickGlideModule : AppGlideModule() {
     override fun registerComponents(context: Context, glide: Glide, registry: Registry) {
         registry.replace(GlideUrl::class.java, InputStream::class.java, OkHttpUrlLoader.Factory())
         registry.append(FlickrPhoto::class.java, InputStream::class.java, FlickrModelLoader.Factory())
@@ -24,7 +24,7 @@ class CloudGalleryGlideModule : AppGlideModule() {
 
 @Subcomponent
 interface GlideComponent {
-    fun inject(module: CloudGalleryGlideModule)
+    fun inject(module: QuickFlickGlideModule)
     @Subcomponent.Builder
     interface Builder {
         fun build(): GlideComponent
