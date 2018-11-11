@@ -24,11 +24,10 @@ class FlickrModelLoader(concreteLoader: ModelLoader<GlideUrl, InputStream>) :
         val isThumbnail = options.get(THUMBNAIL)!!
 
         return when {
-            size > 1600 && model.largeUrl != null && !isThumbnail -> model.largeUrl
-            size > 1024 && model.mediumLargeUrl != null && !isThumbnail -> model.mediumLargeUrl
-            size > 640 && model.originalUrl != null -> model.originalUrl
+            size > 1024 && model.largeUrl != null && !isThumbnail -> model.largeUrl
+            size > 640 && model.mediumLargeUrl != null && !isThumbnail -> model.mediumLargeUrl
             size > 240 && model.mediumUrl != null -> model.mediumUrl
-            model.smallUrl != null -> model.smallUrl
+            size > 100 && model.smallUrl != null -> model.smallUrl
             else -> model.thumbnailUrl
         }
     }

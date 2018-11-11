@@ -67,6 +67,7 @@ class PhotoFragment : DaggerFragment() {
                     GlideApp.with(this)
                         .load(it)
                         .set(FlickrModelLoader.THUMBNAIL, true)
+                        .onlyRetrieveFromCache(true)
                         .addStartTransitionListener(requireActivity())
                 )
                 .dontTransform()

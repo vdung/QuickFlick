@@ -166,7 +166,7 @@ class MainFragment : DaggerFragment(), OnActivityReenterListener {
     }
 
     override fun onActivityReenter(resultCode: Int, data: Intent?) {
-        val position = data?.getIntExtra(PhotoActivity.ARG_CURRENT_POSITION, 0) ?: return
+        val position = data?.getIntExtra(PhotoActivity.ARG_CURRENT_POSITION, currentPosition) ?: return
         requireActivity().supportPostponeEnterTransition()
 
         currentPosition = position

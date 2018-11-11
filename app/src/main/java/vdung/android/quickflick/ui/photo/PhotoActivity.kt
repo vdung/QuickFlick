@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import androidx.core.app.ActivityCompat
 import androidx.databinding.DataBindingUtil
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentStatePagerAdapter
@@ -43,12 +44,22 @@ class PhotoActivity : DaggerAppCompatActivity() {
         viewModel = ViewModelProviders.of(this, viewModelFactory).get()
         binding = DataBindingUtil.setContentView(this, R.layout.photo_activity)
 
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+
+        var initialPosition = intent.getIntExtra(ARG_INITIAL_POSITION, 0)
+        if (savedInstanceState != null) {
+            initialPosition = savedInstanceState.getInt(ARG_CURRENT_POSITION, initialPosition)
+        }
+
         viewModel.interestingPhotos.observe(this, Observer { result ->
+            if (result !is Result.Success) {
+                return@Observer
+            }
+
             binding.pager.apply {
                 val adapter = Adapter().also {
-                    if (result.value is Result.Success<*>) {
-                        result.value.addWeakCallback(null, it.callback)
-                    }
+                    result.result.addWeakCallback(null, it.callback)
                 }
                 this.adapter = adapter
 
@@ -59,6 +70,10 @@ class PhotoActivity : DaggerAppCompatActivity() {
                             setResult(Activity.RESULT_OK, it)
                         }
 
+                        result.result[position]?.let {
+                            title = it.title
+                        }
+
                         adapter.instantiateItem(binding.pager, position)
                             .let { it as PhotoFragment }
                             .let {
@@ -67,9 +82,19 @@ class PhotoActivity : DaggerAppCompatActivity() {
                     }
                 })
 
-                currentItem = intent.getIntExtra(ARG_INITIAL_POSITION, 0)
+                currentItem = initialPosition
             }
         })
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt(ARG_CURRENT_POSITION, binding.pager.currentItem)
+    }
+
+    override fun onSupportNavigateUp(): Boolean {
+        ActivityCompat.finishAfterTransition(this)
+        return true
     }
 
     private inner class Adapter : FragmentStatePagerAdapter(supportFragmentManager) {
