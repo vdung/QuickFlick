@@ -16,6 +16,9 @@ import androidx.lifecycle.ViewModelProviders
 import androidx.lifecycle.get
 import androidx.paging.PagedList
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
+import com.fivehundredpx.greedolayout.GreedoLayoutManager
+import com.fivehundredpx.greedolayout.GreedoLayoutSizeCalculator
+import com.fivehundredpx.greedolayout.GreedoSpacingItemDecoration
 import com.google.android.material.snackbar.Snackbar
 import dagger.android.support.DaggerFragment
 import vdung.android.quickflick.R
@@ -75,10 +78,11 @@ class MainFragment : DaggerFragment(), OnActivityReenterListener {
             (requireActivity() as AppCompatActivity).setSupportActionBar(toolbar)
             recyclerView.apply {
                 this.adapter = adapter
-                layoutManager = StaggeredGridLayoutManager(2, StaggeredGridLayoutManager.VERTICAL)
+                layoutManager = GreedoLayoutManager(adapter).apply {
+                    setMaxRowHeight(resources.getDimensionPixelSize(R.dimen.grid_max_row_height))
+                }
                 addItemDecoration(
-                    StaggeredGridInsetDecoration(
-                        resources.getDimensionPixelSize(R.dimen.grid_edge_inset),
+                    GreedoSpacingItemDecoration(
                         resources.getDimensionPixelSize(R.dimen.grid_inner_inset)
                     )
                 )
@@ -212,8 +216,8 @@ class MainFragment : DaggerFragment(), OnActivityReenterListener {
      * and diff callbacks between PagedList are not really necessary.
      */
     private class Adapter(private val onItemClickListener: View.OnClickListener) :
-        DataBindingAdapter<FlickrPhoto?, MainRecyclerViewItemBinding>() {
-
+        DataBindingAdapter<FlickrPhoto?, MainRecyclerViewItemBinding>(),
+        GreedoLayoutSizeCalculator.SizeCalculatorDelegate {
         private var items: PagedList<FlickrPhoto>? = null
         private val callback = object : PagedList.Callback() {
             override fun onChanged(position: Int, count: Int) {
@@ -237,11 +241,6 @@ class MainFragment : DaggerFragment(), OnActivityReenterListener {
 
             getItem(position)?.let { it ->
                 holder.binding.apply {
-                    ConstraintSet().apply {
-                        clone(constraintView)
-                        setDimensionRatio(R.id.image_view, "${it.thumbnailWidth}:${it.thumbnailHeight}")
-                        applyTo(constraintView)
-                    }
                     ViewCompat.setTransitionName(imageView, it.id)
 
                     GlideApp.with(holder.itemView)
@@ -266,6 +265,12 @@ class MainFragment : DaggerFragment(), OnActivityReenterListener {
 
         override fun getItemCount(): Int {
             return items?.size ?: 0
+        }
+
+        override fun aspectRatioForIndex(position: Int): Double {
+            val item = getItem(position) ?: return 1.0
+
+            return (1.0 * item.thumbnailWidth) / item.thumbnailHeight
         }
 
         /**
