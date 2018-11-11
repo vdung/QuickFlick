@@ -1,5 +1,6 @@
 package vdung.android.quickflick.data.glide
 
+import com.bumptech.glide.load.Option
 import com.bumptech.glide.load.Options
 import com.bumptech.glide.load.model.GlideUrl
 import com.bumptech.glide.load.model.ModelLoader
@@ -13,12 +14,18 @@ import kotlin.math.max
 
 class FlickrModelLoader(concreteLoader: ModelLoader<GlideUrl, InputStream>) :
     BaseGlideUrlLoader<FlickrPhoto>(concreteLoader) {
+
+    companion object {
+        val THUMBNAIL = Option.memory("flickr_thumbnail", false)
+    }
+
     override fun getUrl(model: FlickrPhoto, width: Int, height: Int, options: Options): String? {
-        val size = max(width, height) * 0.75
-        println(size)
+        val size = max(width, height)
+        val isThumbnail = options.get(THUMBNAIL)!!
+
         return when {
-            size > 1600 && model.largeUrl != null -> model.largeUrl
-            size > 1024 && model.mediumLargeUrl != null -> model.mediumLargeUrl
+            size > 1600 && model.largeUrl != null && !isThumbnail -> model.largeUrl
+            size > 1024 && model.mediumLargeUrl != null && !isThumbnail -> model.mediumLargeUrl
             size > 640 && model.originalUrl != null -> model.originalUrl
             size > 240 && model.mediumUrl != null -> model.mediumUrl
             model.smallUrl != null -> model.smallUrl

@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProviders
 import androidx.lifecycle.get
 import dagger.android.support.DaggerFragment
+import vdung.android.quickflick.data.glide.FlickrModelLoader
 import vdung.android.quickflick.databinding.PhotoFragmentBinding
 import vdung.android.quickflick.di.GlideApp
 import vdung.android.quickflick.ui.common.addStartTransitionListener
@@ -56,11 +57,21 @@ class PhotoFragment : DaggerFragment() {
         val position = arguments!!.getInt(ARG_POSITION)
         val photo = viewModel.interestingPhotos.value?.value?.get(position)
 
-        photo?.let { ViewCompat.setTransitionName(binding.photoView, it.id) }
 
-        GlideApp.with(this)
-            .load(photo)
-            .addStartTransitionListener(requireActivity())
-            .into(binding.photoView)
+        photo?.let {
+            ViewCompat.setTransitionName(binding.photoView, it.id)
+
+            GlideApp.with(this)
+                .load(it)
+                .thumbnail(
+                    GlideApp.with(this)
+                        .load(it)
+                        .set(FlickrModelLoader.THUMBNAIL, true)
+                        .addStartTransitionListener(requireActivity())
+                )
+                .dontTransform()
+                .addStartTransitionListener(requireActivity())
+                .into(binding.photoView)
+        }
     }
 }

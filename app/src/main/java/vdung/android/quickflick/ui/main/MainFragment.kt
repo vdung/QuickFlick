@@ -25,6 +25,7 @@ import vdung.android.quickflick.R
 import vdung.android.quickflick.data.Result
 import vdung.android.quickflick.data.flickr.FlickrPhoto
 import vdung.android.quickflick.data.flickr.FlickrTag
+import vdung.android.quickflick.data.glide.FlickrModelLoader
 import vdung.android.quickflick.databinding.MainChipBinding
 import vdung.android.quickflick.databinding.MainFragmentBinding
 import vdung.android.quickflick.databinding.MainRecyclerViewItemBinding
@@ -245,6 +246,7 @@ class MainFragment : DaggerFragment(), OnActivityReenterListener {
 
                     GlideApp.with(holder.itemView)
                         .load(it)
+                        .set(FlickrModelLoader.THUMBNAIL, true)
                         .into(holder.binding.imageView)
 
                     root.setOnClickListener(onItemClickListener)
