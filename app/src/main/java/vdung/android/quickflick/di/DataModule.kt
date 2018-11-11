@@ -4,7 +4,6 @@ import android.content.Context
 import com.squareup.moshi.Moshi
 import dagger.Module
 import dagger.Provides
-import io.reactivex.schedulers.Schedulers
 import okhttp3.Call
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -31,8 +30,6 @@ class DataModule {
                             .addQueryParameter("nojsoncallback", "1")
                             .build()
 
-                        println(url)
-
                         return@run newBuilder()
                             .url(url)
                             .build()
@@ -52,7 +49,7 @@ class DataModule {
         return Retrofit.Builder()
             .callFactory(callFactory)
             .baseUrl(" https://api.flickr.com/services/rest/")
-            .addCallAdapterFactory(RxJava2CallAdapterFactory.createWithScheduler(Schedulers.io()))
+            .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
     }
@@ -62,6 +59,10 @@ class DataModule {
         return retrofit.create(FlickrService::class.java)
     }
 
+    /**
+     * Mark repository as singleton for sharing data between activities.
+     * In reality the data should be committed to a database instead.
+     */
     @Provides
     @Singleton
     fun provideRepository(service: FlickrService): FlickrRepository {

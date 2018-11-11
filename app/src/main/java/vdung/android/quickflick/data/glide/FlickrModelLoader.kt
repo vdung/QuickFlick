@@ -13,11 +13,16 @@ import kotlin.math.max
 
 class FlickrModelLoader(concreteLoader: ModelLoader<GlideUrl, InputStream>) :
     BaseGlideUrlLoader<FlickrPhoto>(concreteLoader) {
-    override fun getUrl(model: FlickrPhoto, width: Int, height: Int, options: Options): String {
-        val size = max(width, height)
+    override fun getUrl(model: FlickrPhoto, width: Int, height: Int, options: Options): String? {
+        val size = max(width, height) * 0.75
+        println(size)
         return when {
-            size <= 320 -> model.smallUrl
-            else -> model.mediumUrl
+            size > 1600 && model.largeUrl != null -> model.largeUrl
+            size > 1024 && model.mediumLargeUrl != null -> model.mediumLargeUrl
+            size > 640 && model.originalUrl != null -> model.originalUrl
+            size > 240 && model.mediumUrl != null -> model.mediumUrl
+            model.smallUrl != null -> model.smallUrl
+            else -> model.thumbnailUrl
         }
     }
 

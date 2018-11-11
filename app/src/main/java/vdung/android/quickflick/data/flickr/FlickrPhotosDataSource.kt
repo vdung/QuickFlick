@@ -17,7 +17,8 @@ abstract class FlickrPhotosDataSource : PageKeyedDataSource<Int, FlickrPhoto>() 
             if (error == null) {
                 callback.onResult(response.photos.photo, 0, response.photos.total, null, 2)
             } else {
-                callback.onResult(mutableListOf(), 0, 0, null, null)
+                println(error)
+                callback.onResult(listOf(), 0, 0, null, null)
             }
         })
     }
@@ -27,7 +28,8 @@ abstract class FlickrPhotosDataSource : PageKeyedDataSource<Int, FlickrPhoto>() 
             if (error == null) {
                 callback.onResult(response.photos.photo, response.photos.page + 1)
             } else {
-                callback.onResult(mutableListOf(), null)
+                println(error)
+                callback.onResult(listOf(), null)
             }
         })
     }
@@ -37,7 +39,8 @@ abstract class FlickrPhotosDataSource : PageKeyedDataSource<Int, FlickrPhoto>() 
             if (error == null) {
                 callback.onResult(response.photos.photo, response.photos.page - 1)
             } else {
-                callback.onResult(mutableListOf(), null)
+                println(error)
+                callback.onResult(listOf(), null)
             }
         })
     }

@@ -3,9 +3,9 @@ package vdung.android.quickflick.ui.main
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SearchView
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.app.ActivityOptionsCompat
 import androidx.core.util.Pair
@@ -14,13 +14,18 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProviders
 import androidx.lifecycle.get
-import androidx.recyclerview.widget.DiffUtil
+import androidx.paging.PagedList
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
+import com.google.android.material.snackbar.Snackbar
 import dagger.android.support.DaggerFragment
 import vdung.android.quickflick.R
+import vdung.android.quickflick.data.Result
 import vdung.android.quickflick.data.flickr.FlickrPhoto
+import vdung.android.quickflick.data.flickr.FlickrTag
+import vdung.android.quickflick.databinding.MainChipBinding
 import vdung.android.quickflick.databinding.MainFragmentBinding
 import vdung.android.quickflick.databinding.MainRecyclerViewItemBinding
+import vdung.android.quickflick.databinding.MainSelectedChipBinding
 import vdung.android.quickflick.di.GlideApp
 import vdung.android.quickflick.ui.common.*
 import vdung.android.quickflick.ui.photo.PhotoActivity
@@ -33,7 +38,7 @@ class MainFragment : DaggerFragment(), OnActivityReenterListener {
     private lateinit var binding: MainFragmentBinding
     private lateinit var viewModel: MainViewModel
 
-    var currentPosition = 0
+    private var currentPosition = 0
     private var hasPendingTransition = false
 
     override fun onAttach(context: Context?) {
@@ -44,6 +49,11 @@ class MainFragment : DaggerFragment(), OnActivityReenterListener {
     override fun onDetach() {
         (requireActivity() as? OnActivityReenterListener.Host)?.removeListener(this)
         super.onDetach()
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setHasOptionsMenu(true)
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
@@ -57,10 +67,12 @@ class MainFragment : DaggerFragment(), OnActivityReenterListener {
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
         viewModel = ViewModelProviders.of(requireActivity(), viewModelFactory).get()
-        val adapter = Adapter()
+
+        val adapter = Adapter(itemClickListener)
 
         binding.viewModel = viewModel
         binding.apply {
+            (requireActivity() as AppCompatActivity).setSupportActionBar(toolbar)
             recyclerView.apply {
                 this.adapter = adapter
                 layoutManager = StaggeredGridLayoutManager(2, StaggeredGridLayoutManager.VERTICAL)
@@ -88,9 +100,63 @@ class MainFragment : DaggerFragment(), OnActivityReenterListener {
             }
         }
 
-        viewModel.searchPhotos().observe(this, Observer {
-            adapter.submitList(it.value)
+        viewModel.tags.observe(viewLifecycleOwner, Observer {
+            binding.tagList.removeAllViews()
+            it.forEach { chipTag ->
+                when (chipTag) {
+                    is ChipTag.Added -> MainSelectedChipBinding.inflate(
+                        requireActivity().layoutInflater,
+                        binding.tagList,
+                        true
+                    ).apply {
+                        item = chipTag.tag
+                        chip.setOnCloseIconClickListener {
+                            viewModel.tagChanged(chipTag.tag, false)
+                        }
+                    }
+
+                    is ChipTag.Suggested -> MainChipBinding.inflate(
+                        requireActivity().layoutInflater,
+                        binding.tagList,
+                        true
+                    ).apply {
+                        item = chipTag.tag
+                        chip.setOnClickListener {
+                            viewModel.tagChanged(chipTag.tag, true)
+                        }
+                    }
+
+                    is ChipTag.Query -> MainSelectedChipBinding.inflate(
+                        requireActivity().layoutInflater,
+                        binding.tagList,
+                        true
+                    ).apply {
+                        item = FlickrTag(100, chipTag.text)
+                        chip.setChipBackgroundColorResource(R.color.colorAccent)
+                        chip.setOnCloseIconClickListener {
+                            viewModel.queryTextChanged("")
+                        }
+                    }
+                }
+            }
         })
+
+        viewModel.photos.observe(viewLifecycleOwner, Observer { result ->
+            when (result) {
+                is Result.Success -> {
+                    if (adapter.submitList(result.result)) {
+                        binding.recyclerView.scrollToPosition(0)
+                    }
+                }
+            }
+        })
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+        super.onCreateOptionsMenu(menu, inflater)
+        inflater.inflate(R.menu.main_fragment_menu, menu)
+        val searchView = menu.findItem(R.id.search).actionView as SearchView
+        searchView.setOnQueryTextListener(queryTextListener)
     }
 
     override fun onActivityReenter(resultCode: Int, data: Intent?) {
@@ -105,7 +171,25 @@ class MainFragment : DaggerFragment(), OnActivityReenterListener {
         }
     }
 
-    val onItemClickListener = View.OnClickListener { v ->
+    private fun displayError(error: Throwable) {
+        Snackbar.make(binding.root, error.localizedMessage, Snackbar.LENGTH_LONG)
+            .setAction(R.string.retry) {
+                viewModel.refresh()
+            }
+            .show()
+    }
+
+    private val queryTextListener = object : SearchView.OnQueryTextListener {
+        override fun onQueryTextSubmit(query: String?): Boolean {
+            return viewModel.queryTextChanged(query)
+        }
+
+        override fun onQueryTextChange(newText: String?): Boolean {
+            return true
+        }
+    }
+
+    private val itemClickListener = View.OnClickListener { v ->
         val holder = binding.recyclerView.findContainingViewHolder(v)?.let {
             @Suppress("UNCHECKED_CAST")
             it as? DataBindingViewHolder<FlickrPhoto, MainRecyclerViewItemBinding>
@@ -123,21 +207,30 @@ class MainFragment : DaggerFragment(), OnActivityReenterListener {
         )
     }
 
-    companion object {
-        val diffCallback = object : DiffUtil.ItemCallback<FlickrPhoto>() {
-            override fun areItemsTheSame(oldItem: FlickrPhoto, newItem: FlickrPhoto): Boolean {
-                return oldItem.id == newItem.id
+    /**
+     * Use a normal Adapter here since the number of items in the list can be in the millions,
+     * and diff callbacks between PagedList are not really necessary.
+     */
+    private class Adapter(private val onItemClickListener: View.OnClickListener) :
+        DataBindingAdapter<FlickrPhoto?, MainRecyclerViewItemBinding>() {
+
+        private var items: PagedList<FlickrPhoto>? = null
+        private val callback = object : PagedList.Callback() {
+            override fun onChanged(position: Int, count: Int) {
+                notifyItemRangeChanged(position, count)
             }
 
-            override fun areContentsTheSame(oldItem: FlickrPhoto, newItem: FlickrPhoto): Boolean {
-                return oldItem == newItem
+            override fun onInserted(position: Int, count: Int) {
+                notifyItemRangeInserted(position, count)
+            }
+
+            override fun onRemoved(position: Int, count: Int) {
+                notifyItemRangeRemoved(position, count)
             }
         }
-    }
 
-    inner class Adapter : DataBindingPagedListAdapter<FlickrPhoto, MainRecyclerViewItemBinding>(diffCallback) {
         override fun onBindViewHolder(
-            holder: DataBindingViewHolder<FlickrPhoto, MainRecyclerViewItemBinding>,
+            holder: DataBindingViewHolder<FlickrPhoto?, MainRecyclerViewItemBinding>,
             position: Int
         ) {
             super.onBindViewHolder(holder, position)
@@ -146,7 +239,7 @@ class MainFragment : DaggerFragment(), OnActivityReenterListener {
                 holder.binding.apply {
                     ConstraintSet().apply {
                         clone(constraintView)
-                        setDimensionRatio(R.id.image_view, "${it.smallWidth}:${it.smallHeight}")
+                        setDimensionRatio(R.id.image_view, "${it.thumbnailWidth}:${it.thumbnailHeight}")
                         applyTo(constraintView)
                     }
                     ViewCompat.setTransitionName(imageView, it.id)
@@ -162,6 +255,34 @@ class MainFragment : DaggerFragment(), OnActivityReenterListener {
 
         override fun getLayoutId(position: Int): Int {
             return R.layout.main_recycler_view_item
+        }
+
+        override fun getItem(position: Int): FlickrPhoto? {
+            return items?.run {
+                loadAround(position)
+                get(position)
+            }
+        }
+
+        override fun getItemCount(): Int {
+            return items?.size ?: 0
+        }
+
+        /**
+         * Submit a new list. Return true if the list actually changes.
+         */
+        fun submitList(items: PagedList<FlickrPhoto>): Boolean {
+            if (items === this.items) {
+                return false
+            }
+
+            this.items?.apply {
+                removeWeakCallback(callback)
+            }
+            items.addWeakCallback(null, callback)
+            this.items = items
+            notifyDataSetChanged()
+            return true
         }
     }
 }

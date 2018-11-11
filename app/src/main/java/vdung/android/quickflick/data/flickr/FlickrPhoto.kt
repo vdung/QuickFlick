@@ -4,22 +4,24 @@ import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
 enum class FlickrExtras(val key: String) {
-    Small320(FlickrExtras.SMALL_320),
+    Thumbnail(FlickrExtras.THUMBNAIL),
+    Small(FlickrExtras.SMALL),
     Medium640(FlickrExtras.MEDIUM_640),
-    Medium800(FlickrExtras.MEDIUM_800),
-    Large(FlickrExtras.LARGE),
+    Large1024(FlickrExtras.LARGE_1024),
+    Large1600(FlickrExtras.LARGE_1600),
     Original(FlickrExtras.ORIGINAL),
-    OriginalDimension(FlickrExtras.ORIGINAL_DIMENSION);
+    Tags(FlickrExtras.TAGS);
 
     companion object {
-        const val SMALL_320 = "url_n"
+        const val THUMBNAIL = "url_t"
+        const val SMALL = "url_m"
         const val MEDIUM_640 = "url_z"
-        const val MEDIUM_800 = "url_c"
-        const val LARGE = "url_b"
+        const val LARGE_1024 = "url_b"
+        const val LARGE_1600 = "url_h"
         const val ORIGINAL = "url_o"
-        const val ORIGINAL_DIMENSION = "o_dims"
-        const val SMALL_320_WIDTH = "width_n"
-        const val SMALL_320_HEIGHT = "height_n"
+        const val THUMBNAIL_WIDTH = "width_t"
+        const val THUMBNAIL_HEIGHT = "height_t"
+        const val TAGS = "tags"
 
         fun allValues(): String {
             return FlickrExtras.values().joinToString(separator = ",") { it.key }
@@ -32,10 +34,17 @@ data class FlickrPhoto(
     val id: String,
     val title: String,
     val owner: String,
-    @Json(name = FlickrExtras.SMALL_320_WIDTH) val smallWidth: Int,
-    @Json(name = FlickrExtras.SMALL_320_HEIGHT) val smallHeight: Int,
-    @Json(name = FlickrExtras.SMALL_320) val smallUrl: String,
-    @Json(name = FlickrExtras.MEDIUM_640) val mediumUrl: String,
+    val secret: String,
+    val farm: String,
+    val server: String,
+    val tags: String,
+    @Json(name = FlickrExtras.THUMBNAIL_WIDTH) val thumbnailWidth: Int,
+    @Json(name = FlickrExtras.THUMBNAIL_HEIGHT) val thumbnailHeight: Int,
+    @Json(name = FlickrExtras.THUMBNAIL) val thumbnailUrl: String?,
+    @Json(name = FlickrExtras.SMALL) val smallUrl: String?,
+    @Json(name = FlickrExtras.MEDIUM_640) val mediumUrl: String?,
+    @Json(name = FlickrExtras.LARGE_1024) val mediumLargeUrl: String?,
+    @Json(name = FlickrExtras.LARGE_1600) val largeUrl: String?,
     @Json(name = FlickrExtras.ORIGINAL) val originalUrl: String?
 )
 

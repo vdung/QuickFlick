@@ -16,25 +16,41 @@
             android:id="@+id/app_bar_layout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:fitsSystemWindows="true"
+            android:background="?android:attr/windowBackground"
             app:elevation="0dp">
 
             <androidx.appcompat.widget.Toolbar
                 android:id="@+id/toolbar"
                 style="@style/Widget.MaterialComponents.Toolbar"
                 android:layout_width="match_parent"
-                android:layout_height="?actionBarSize"
-                android:background="?android:attr/windowBackground"
-                app:layout_scrollFlags="scroll|enterAlways|snap" />
+                android:layout_height="?attr/actionBarSize"
+                app:layout_scrollFlags="scroll|enterAlways|snap"
+                app:title="@string/app_name" />
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                android:scrollbars="none">
+
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/tag_list"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:paddingStart="?attr/listPreferredItemPaddingLeft"
+                    android:paddingEnd="?attr/listPreferredItemPaddingRight"
+                    app:singleLine="true" />
+            </HorizontalScrollView>
+
         </com.google.android.material.appbar.AppBarLayout>
 
 
         <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            app:refreshing="@{viewModel.isRefreshing}"
             app:layout_behavior="@string/appbar_scrolling_view_behavior"
-            app:onRefreshListener="@{() -> viewModel.refresh()}">
+            app:onRefreshListener="@{() -> viewModel.refresh()}"
+            app:refreshing="@{viewModel.isRefreshing}">
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recycler_view"
