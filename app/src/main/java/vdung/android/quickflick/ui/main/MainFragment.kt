@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.view.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
-import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.app.ActivityOptionsCompat
 import androidx.core.util.Pair
 import androidx.core.view.ViewCompat
@@ -15,7 +14,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProviders
 import androidx.lifecycle.get
 import androidx.paging.PagedList
-import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import com.fivehundredpx.greedolayout.GreedoLayoutManager
 import com.fivehundredpx.greedolayout.GreedoLayoutSizeCalculator
 import com.fivehundredpx.greedolayout.GreedoSpacingItemDecoration
@@ -152,6 +150,9 @@ class MainFragment : DaggerFragment(), OnActivityReenterListener {
                     if (adapter.submitList(result.result)) {
                         binding.recyclerView.scrollToPosition(0)
                     }
+                }
+                is Result.Error -> {
+                    displayError(result.error)
                 }
             }
         })
