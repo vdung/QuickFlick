@@ -2,6 +2,7 @@ package vdung.android.quickflick.ui.main
 
 import android.content.Context
 import android.content.Intent
+import android.database.MatrixCursor
 import android.os.Bundle
 import android.view.*
 import androidx.appcompat.app.AppCompatActivity
@@ -9,6 +10,7 @@ import androidx.appcompat.widget.SearchView
 import androidx.core.app.ActivityOptionsCompat
 import androidx.core.util.Pair
 import androidx.core.view.ViewCompat
+import androidx.cursoradapter.widget.SimpleCursorAdapter
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProviders
@@ -104,44 +106,7 @@ class MainFragment : DaggerFragment(), OnActivityReenterListener {
         }
 
         viewModel.tags.observe(viewLifecycleOwner, Observer {
-            binding.tagList.removeAllViews()
-            it.forEach { chipTag ->
-                when (chipTag) {
-                    is ChipTag.Added -> MainSelectedChipBinding.inflate(
-                        requireActivity().layoutInflater,
-                        binding.tagList,
-                        true
-                    ).apply {
-                        item = chipTag.tag
-                        chip.setOnCloseIconClickListener {
-                            viewModel.tagChanged(chipTag.tag, false)
-                        }
-                    }
-
-                    is ChipTag.Suggested -> MainChipBinding.inflate(
-                        requireActivity().layoutInflater,
-                        binding.tagList,
-                        true
-                    ).apply {
-                        item = chipTag.tag
-                        chip.setOnClickListener {
-                            viewModel.tagChanged(chipTag.tag, true)
-                        }
-                    }
-
-                    is ChipTag.Query -> MainSelectedChipBinding.inflate(
-                        requireActivity().layoutInflater,
-                        binding.tagList,
-                        true
-                    ).apply {
-                        item = FlickrTag(100, chipTag.text)
-                        chip.setChipBackgroundColorResource(R.color.colorAccent)
-                        chip.setOnCloseIconClickListener {
-                            viewModel.queryTextChanged("")
-                        }
-                    }
-                }
-            }
+            replaceTags(it)
         })
 
         viewModel.photos.observe(viewLifecycleOwner, Observer { result ->
@@ -162,7 +127,35 @@ class MainFragment : DaggerFragment(), OnActivityReenterListener {
         super.onCreateOptionsMenu(menu, inflater)
         inflater.inflate(R.menu.main_fragment_menu, menu)
         val searchView = menu.findItem(R.id.search).actionView as SearchView
-        searchView.setOnQueryTextListener(queryTextListener)
+        searchView.apply {
+            setOnQueryTextListener(queryTextListener)
+
+            suggestionsAdapter = SimpleCursorAdapter(
+                requireContext(),
+                R.layout.main_search_item,
+                null,
+                arrayOf("content"),
+                intArrayOf(R.id.tag_text),
+                0
+            ).also { adapter ->
+                viewModel.relatedTags.observe(viewLifecycleOwner, Observer { result ->
+                    if (result !is Result.Success) {
+                        return@Observer
+                    }
+                    val tags = result.result
+                    MatrixCursor(arrayOf("_id", "content")).apply {
+                        tags.forEachIndexed { index, tag -> addRow(arrayOf(index, tag.content)) }
+                        adapter.changeCursor(this)
+                    }
+                })
+            }
+
+            setOnSuggestionListener(suggestionListener)
+            setOnCloseListener {
+                viewModel.queryTextChanged("")
+                return@setOnCloseListener false
+            }
+        }
     }
 
     override fun onActivityReenter(resultCode: Int, data: Intent?) {
@@ -177,6 +170,47 @@ class MainFragment : DaggerFragment(), OnActivityReenterListener {
         }
     }
 
+    private fun replaceTags(it: List<ChipTag>) {
+        binding.tagList.removeAllViews()
+        it.forEach { chipTag ->
+            when (chipTag) {
+                is ChipTag.Added -> MainSelectedChipBinding.inflate(
+                    requireActivity().layoutInflater,
+                    binding.tagList,
+                    true
+                ).apply {
+                    item = chipTag.tag
+                    chip.setOnCloseIconClickListener {
+                        viewModel.tagChanged(chipTag.tag, false)
+                    }
+                }
+
+                is ChipTag.Suggested -> MainChipBinding.inflate(
+                    requireActivity().layoutInflater,
+                    binding.tagList,
+                    true
+                ).apply {
+                    item = chipTag.tag
+                    chip.setOnClickListener {
+                        viewModel.tagChanged(chipTag.tag, true)
+                    }
+                }
+
+                is ChipTag.Query -> MainSelectedChipBinding.inflate(
+                    requireActivity().layoutInflater,
+                    binding.tagList,
+                    true
+                ).apply {
+                    item = FlickrTag(chipTag.text)
+                    chip.setChipBackgroundColorResource(R.color.colorAccent)
+                    chip.setOnCloseIconClickListener {
+                        viewModel.queryTextSubmitted("")
+                    }
+                }
+            }
+        }
+    }
+
     private fun displayError(error: Throwable) {
         Snackbar.make(binding.root, error.localizedMessage, Snackbar.LENGTH_LONG)
             .setAction(R.string.retry) {
@@ -187,10 +221,23 @@ class MainFragment : DaggerFragment(), OnActivityReenterListener {
 
     private val queryTextListener = object : SearchView.OnQueryTextListener {
         override fun onQueryTextSubmit(query: String?): Boolean {
-            return viewModel.queryTextChanged(query)
+            viewModel.queryTextSubmitted(query)
+            return false
         }
 
         override fun onQueryTextChange(newText: String?): Boolean {
+            viewModel.queryTextChanged(newText)
+            return false
+        }
+    }
+
+    private val suggestionListener = object : SearchView.OnSuggestionListener {
+        override fun onSuggestionSelect(position: Int): Boolean {
+            return true
+        }
+
+        override fun onSuggestionClick(position: Int): Boolean {
+            viewModel.suggestionClicked(position)
             return true
         }
     }

@@ -24,9 +24,8 @@ interface FlickrService {
         @Query("extras") extras: String
     ): Single<FlickrPhotoSearchResponse>
 
-    @GET("?method=flickr.tags.getHotList")
-    fun getHotTags(
-        @Query("period") period: String = "day",
-        @Query("count") count: Int = 20
-    ): Single<FlickrHotTagsResponse>
+    @GET("?method=flickr.tags.getRelated")
+    fun getRelatedTags(
+        @Query("tag") tag: String
+    ): Single<FlickrRelatedTagsResponse>
 }

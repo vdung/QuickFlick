@@ -105,7 +105,7 @@ class FlickrRepository @Inject constructor(
 ) {
 
     val interestingPhotos: ResultPublisher<PagedList<FlickrPhoto>, FlickrSearch, Unit> by lazy {
-        return@lazy object : ResultPublisher<PagedList<FlickrPhoto>, FlickrSearch, Unit>() {
+        object : ResultPublisher<PagedList<FlickrPhoto>, FlickrSearch, Unit>() {
             private val searchArgs = BehaviorProcessor.createDefault<FlickrSearch>(FlickrSearch.EMPTY)
             private val errorProcessor = PublishProcessor.create<Throwable>()
 
@@ -144,6 +144,33 @@ class FlickrRepository @Inject constructor(
                 return RxPagedListBuilder<Int, FlickrPhoto>(factory, getDefaultDataSourceConfig()).buildFlowable(
                     BackpressureStrategy.LATEST
                 )
+            }
+        }
+    }
+
+    fun createRelatedTagsPublisher(): ResultPublisher<List<FlickrTag>, String, List<FlickrTag>> {
+        return object : ResultPublisher<List<FlickrTag>, String, List<FlickrTag>>() {
+            private val tagsProcessor = BehaviorProcessor.createDefault(emptyList<FlickrTag>())
+
+            override fun localData(): Publisher<List<FlickrTag>> {
+                return tagsProcessor
+            }
+
+            override fun shouldFetch(arg: String, previousResult: List<FlickrTag>): Boolean {
+                return true
+            }
+
+            override fun fetchFromNetwork(arg: String): Publisher<List<FlickrTag>> {
+                if (arg.isEmpty()) {
+                    return Flowable.just(emptyList())
+                }
+                return service.getRelatedTags(arg)
+                    .toFlowable()
+                    .map { listOf(FlickrTag(arg)) + it.tags.tag } // add the source to list of tags
+            }
+
+            override fun onNetworkResult(networkData: List<FlickrTag>) {
+                tagsProcessor.onNext(networkData)
             }
         }
     }

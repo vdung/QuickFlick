@@ -5,19 +5,17 @@ import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
 data class FlickrTag(
-    val score: Int,
-    @Json(name = "_content") val content: String
+    @Json(name = "_content") val content: String,
+    val score: Int? = null
 )
 
 @JsonClass(generateAdapter = true)
-data class FlickrHotTagsResponse(
-    @Json(name = "hottags") val hotTags: HotTags,
-    val stat: String
+data class FlickrRelatedTagsResponse(
+    val tags: Tags
 ) {
     @JsonClass(generateAdapter = true)
-    data class HotTags(
-        val period: String,
-        val count: Int,
+    data class Tags(
+        val source: String,
         val tag: List<FlickrTag>
     )
 }

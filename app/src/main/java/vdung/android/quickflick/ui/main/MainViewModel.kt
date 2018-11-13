@@ -14,9 +14,11 @@ import io.reactivex.processors.BehaviorProcessor
 import io.reactivex.processors.PublishProcessor
 import io.reactivex.schedulers.Schedulers
 import vdung.android.quickflick.data.Result
+import vdung.android.quickflick.data.flickr.FlickrPhoto
 import vdung.android.quickflick.data.flickr.FlickrRepository
 import vdung.android.quickflick.data.flickr.FlickrSearch
 import vdung.android.quickflick.data.flickr.FlickrTag
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlin.math.min
 
@@ -29,6 +31,8 @@ sealed class ChipTag {
 class MainViewModel @Inject constructor(
     flickrRepository: FlickrRepository
 ) : ViewModel() {
+
+    private val disposable = CompositeDisposable()
 
     private val interestingPhotos = flickrRepository.interestingPhotos
 
@@ -47,6 +51,9 @@ class MainViewModel @Inject constructor(
 
     private val queryText = BehaviorProcessor.createDefault("")
 
+    private val relatedTagsQuery = PublishProcessor.create<String>()
+    private val relatedTagsResult = flickrRepository.createRelatedTagsPublisher()
+
     private val searchArgs = Flowable.combineLatest<List<FlickrTag>, String, FlickrSearch>(
         checkedTags,
         queryText,
@@ -57,51 +64,47 @@ class MainViewModel @Inject constructor(
         .observeOn(Schedulers.computation())
         .switchMap { result ->
             return@switchMap when (result) {
-                is Result.Success -> result.result.let { photoList ->
-                    Flowable.create<List<FlickrTag>>({ emitter ->
-                        val callback = object : PagedList.Callback() {
-                            override fun onChanged(position: Int, count: Int) {
-                                emitTags()
-                            }
-
-                            override fun onInserted(position: Int, count: Int) {
-                                emitTags()
-                            }
-
-                            override fun onRemoved(position: Int, count: Int) {
-                                emitTags()
-                            }
-
-                            fun emitTags() {
-                                photoList
-                                    .take(min(photoList.loadedCount, 100))
-                                    .flatMap { it.tags.split(Regex("\\s")) }
-                                    .filter { it.isNotEmpty() }
-                                    .groupingBy { it }
-                                    .eachCount()
-                                    .map { FlickrTag(it.value, it.key) }
-                                    .sortedByDescending { it.score }
-                                    .let { emitter.onNext(it) }
-                            }
-                        }
-
-                        photoList.addWeakCallback(null, callback)
-                        emitter.setDisposable(Disposables.fromAction {
-                            photoList.removeWeakCallback(callback)
-                        })
-
-                        callback.emitTags()
-                    }, BackpressureStrategy.LATEST)
-                }
+                is Result.Success -> extractTags(result.result)
                 else -> Flowable.just(emptyList())
             }
         }
         .observeOn(AndroidSchedulers.mainThread())
 
-    private val disposable = CompositeDisposable()
+    private fun extractTags(photoList: PagedList<FlickrPhoto>): Flowable<List<FlickrTag>> {
+        return Flowable.create<List<FlickrTag>>({ emitter ->
+            val callback = object : PagedList.Callback() {
+                override fun onChanged(position: Int, count: Int) {
+                    emitTags()
+                }
 
-    override fun onCleared() {
-        disposable.dispose()
+                override fun onInserted(position: Int, count: Int) {
+                    emitTags()
+                }
+
+                override fun onRemoved(position: Int, count: Int) {
+                    emitTags()
+                }
+
+                fun emitTags() {
+                    photoList
+                        .take(min(photoList.loadedCount, 100))
+                        .flatMap { it.tags.split(Regex("\\s")) }
+                        .filter { it.isNotEmpty() }
+                        .groupingBy { it }
+                        .eachCount()
+                        .map { FlickrTag(it.key, it.value) }
+                        .sortedByDescending { it.score }
+                        .let { emitter.onNext(it) }
+                }
+            }
+
+            photoList.addWeakCallback(null, callback)
+            emitter.setDisposable(Disposables.fromAction {
+                photoList.removeWeakCallback(callback)
+            })
+
+            callback.emitTags()
+        }, BackpressureStrategy.LATEST)
     }
 
     val photos = interestingPhotos.toLiveData()
@@ -128,8 +131,20 @@ class MainViewModel @Inject constructor(
 
     val isRefreshing = Flowable.fromPublisher(interestingPhotos).map { it is Result.Pending }.toLiveData()
 
+    val relatedTags = Flowable.fromPublisher(relatedTagsResult)
+        .subscribeOn(Schedulers.io())
+        .observeOn(AndroidSchedulers.mainThread())
+        .toLiveData()
+
     init {
-        searchArgs.subscribe { interestingPhotos.fetch(it) }.also { disposable.add(it) }
+        searchArgs.subscribe { interestingPhotos.fetch(it) }
+            .also { disposable.add(it) }
+        relatedTagsQuery.debounce(1, TimeUnit.SECONDS).subscribe { relatedTagsResult.fetch(it) }
+            .also { disposable.add(it) }
+    }
+
+    override fun onCleared() {
+        disposable.dispose()
     }
 
     fun refresh() {
@@ -140,12 +155,21 @@ class MainViewModel @Inject constructor(
         checkedTagEvent.onNext(tag to isChecked)
     }
 
-    fun queryTextChanged(query: String?): Boolean {
+    fun queryTextSubmitted(query: String?) {
         if (query == null) {
-            return false
+            return
         }
 
         queryText.onNext(query)
-        return true
+    }
+
+    fun queryTextChanged(query: String?) {
+        relatedTagsQuery.onNext(query ?: "")
+    }
+
+    fun suggestionClicked(position: Int) {
+        val tag = relatedTags.value?.value?.get(position) ?: return
+
+        checkedTagEvent.onNext(tag to true)
     }
 }
