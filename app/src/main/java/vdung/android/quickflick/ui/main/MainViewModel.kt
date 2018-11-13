@@ -34,8 +34,6 @@ class MainViewModel @Inject constructor(
 
     private val disposable = CompositeDisposable()
 
-    private val interestingPhotos = flickrRepository.interestingPhotos
-
     private val checkedTagEvent = PublishProcessor.create<Pair<FlickrTag, Boolean>>()
     private val checkedTags = checkedTagEvent
         .scan(emptyList<FlickrTag>()) { tags, changedTag ->
@@ -54,12 +52,16 @@ class MainViewModel @Inject constructor(
     private val relatedTagsQuery = PublishProcessor.create<String>()
     private val relatedTagsResult = flickrRepository.createRelatedTagsPublisher()
 
-    private val searchArgs = Flowable.combineLatest<List<FlickrTag>, String, FlickrSearch>(
-        checkedTags,
-        queryText,
-        BiFunction { tags, text -> FlickrSearch(text, tags) }
-    ).replay(1).refCount()
+    private val searchArgs = Flowable
+        .combineLatest<List<FlickrTag>, String, FlickrSearch>(
+            checkedTags,
+            queryText,
+            BiFunction { tags, text -> FlickrSearch(text, tags) }
+        )
+        .replay(1)
+        .refCount()
 
+    private val interestingPhotos = flickrRepository.interestingPhotos
     private val tagsOfFetchedPhotos = Flowable.fromPublisher(interestingPhotos)
         .observeOn(Schedulers.computation())
         .switchMap { result ->
