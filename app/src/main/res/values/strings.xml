@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">QuickFlick</string>
     <string name="api_key">6deb49d0f4d7bf58cc619bb8c9c543d7</string>
-    <string name="search">Search</string>
-    <string name="retry">Retry</string>
+    <string name="action_search">Search</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_open_in_browser">Open in browser</string>
+    <string name="action_open_photo">Open photo in…</string>
 </resources>

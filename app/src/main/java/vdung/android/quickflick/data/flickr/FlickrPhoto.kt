@@ -46,7 +46,11 @@ data class FlickrPhoto(
     @Json(name = FlickrExtras.LARGE_1024) val mediumLargeUrl: String?,
     @Json(name = FlickrExtras.LARGE_1600) val largeUrl: String?,
     @Json(name = FlickrExtras.ORIGINAL) val originalUrl: String?
-)
+) {
+    val webUrl: String get() {
+        return "https://www.flickr.com/photos/$owner/$id/"
+    }
+}
 
 @JsonClass(generateAdapter = true)
 data class FlickrPhotoSearchResponse(

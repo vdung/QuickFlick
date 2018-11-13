@@ -213,7 +213,7 @@ class MainFragment : DaggerFragment(), OnActivityReenterListener {
 
     private fun displayError(error: Throwable) {
         Snackbar.make(binding.root, error.localizedMessage, Snackbar.LENGTH_LONG)
-            .setAction(R.string.retry) {
+            .setAction(R.string.action_retry) {
                 viewModel.refresh()
             }
             .show()
